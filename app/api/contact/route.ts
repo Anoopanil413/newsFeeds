@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { adminDb } from "@/lib/firebase-admin"
+// Ensure your service account JSON includes "project_id" and is loaded correctly in firebase-admin initialization.
 
 export async function POST(request: NextRequest) {
   try {
