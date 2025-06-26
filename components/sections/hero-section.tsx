@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,21 +13,21 @@ export default function HeroSection() {
   const [email, setEmail] = useState("")
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth(); // Get user and auth loading state
-    const [trialStarted, setTrialStarted] = useState(false); // New state to manage UI after link sent
-
+  const { user, loading: authLoading } = useAuth() // Get user and auth loading state
+  const [trialStarted, setTrialStarted] = useState(false) // New state to manage UI after link sent
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   const handleSubscribeClick = async () => {
     if (!email) {
-      setMessage("Please enter your email address.");
-      return;
+      setMessage("Please enter your email address.")
+      return
     }
 
-    setLoading(true);
-    setMessage("Sending magic link to your email...");
-        setTrialStarted(false); // Reset in case of re-attempt
-
+    setLoading(true)
+    setMessage("Sending magic link to your email...")
+    setTrialStarted(false) // Reset in case of re-attempt
 
     try {
       const actionCodeSettings = {
@@ -35,39 +35,60 @@ export default function HeroSection() {
         // It must be an authorized redirect domain in your Firebase project settings.
         url: `${window.location.origin}/`,
         handleCodeInApp: true, // This tells Firebase to handle the redirect within your app
-      };
-
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      localStorage.setItem('emailForSignIn', email); // Store email for verification on the pricing page
-      setMessage("A magic sign-in link has been sent to your email! Please check your inbox to continue.");
-            setTrialStarted(true); // Indicate that the link has been sent for trial
-
-    } catch (error: unknown) {
-      console.error("Error sending sign-in link:", error);
-      let errorMessage = "An unknown error occurred. Please try again.";
-      if (error && typeof error === "object" && "message" in error) {
-        errorMessage = `Error: ${(error as { message: string }).message}. Please try again.`;
       }
-      setMessage(errorMessage);
+
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings)
+      localStorage.setItem("emailForSignIn", email) // Store email for verification on the pricing page
+      setMessage("A magic sign-in link has been sent to your email! Please check your inbox to continue.")
+      setTrialStarted(true) // Indicate that the link has been sent for trial
+    } catch (error: unknown) {
+      console.error("Error sending sign-in link:", error)
+      let errorMessage = "An unknown error occurred. Please try again."
+      if (error && typeof error === "object" && "message" in error) {
+        errorMessage = `Error: ${(error as { message: string }).message}. Please try again.`
+      }
+      setMessage(errorMessage)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
+
+const handleVideoPlay = () => {
+  setIsVideoPlaying(true)
+}
+
+
+
+  const handleVideoEnd = () => {
+    setIsVideoPlaying(false)
+  }
 
   // If user is already logged in, redirect them to pricing/dashboard
   useEffect(() => {
     if (!authLoading && user && !trialStarted) {
-      router.push('/'); // Or '/dashboard' if you have one ready
+      router.push("/") // Or '/dashboard' if you have one ready
     }
-  }, [user, authLoading, router,trialStarted]);
+  }, [user, authLoading, router, trialStarted])
+    useEffect(() => {
+  if (isVideoPlaying && videoRef.current) {
+    const playPromise = videoRef.current.play()
+
+    if (playPromise !== undefined) {
+      playPromise.catch((error) => {
+        console.warn("Auto-play was prevented:", error)
+      })
+    }
+  }
+}, [isVideoPlaying])
 
   if (authLoading) {
     return (
       <section className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <p>Loading application...</p>
       </section>
-    );
+    )
   }
+
 
   return (
     <section id="home" className="relative bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center">
@@ -99,7 +120,7 @@ export default function HeroSection() {
                 onClick={handleSubscribeClick}
                 disabled={loading || trialStarted} // Disable if already sending link
               >
-                {loading ? "Sending..." : (trialStarted ? "Link Sent!" : "Start Free Trial")}
+                {loading ? "Sending..." : trialStarted ? "Link Sent!" : "Start Free Trial"}
               </Button>
               <Button size="lg" variant="outline" className="px-8 py-4 text-lg font-semibold border-2">
                 <Play className="mr-2 h-5 w-5" />
@@ -108,6 +129,7 @@ export default function HeroSection() {
             </div>
 
             {/* Feature highlights */}
+
             <div className="space-y-4 pt-4">
               <div className="flex items-center space-x-3 text-gray-700">
                 <Users className="h-5 w-5 text-blue-600" />
@@ -127,26 +149,45 @@ export default function HeroSection() {
           {/* Right Content - Video Demo & Subscription */}
           <div className="relative space-y-6">
             {/* Video Demo Card */}
-            <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-8 text-white shadow-2xl">
-              <div className="text-center space-y-6">
-                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto backdrop-blur-sm">
-                  <Play className="h-10 w-10 text-white ml-1" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold mb-2">See How It Works</h3>
-                  <p className="text-blue-100 text-lg">Watch our 2-minute demo</p>
-                </div>
-                <div className="bg-black/20 rounded-xl p-4 backdrop-blur-sm">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>AI Maritime News Curation Demo</span>
-                    <span>2:15</span>
+            <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+              {!isVideoPlaying ? (
+                // Default state - show play button and info
+                <div className="text-center space-y-6">
+                  <div
+                    className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto backdrop-blur-sm cursor-pointer hover:bg-white/30 transition-colors duration-300"
+                    onClick={handleVideoPlay}
+                  >
+                    <Play className="h-10 w-10 text-white ml-1" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold mb-2">See How It Works</h3>
+                    <p className="text-blue-100 text-lg">Watch our 2-minute demo</p>
+                  </div>
+                  <div className="bg-black/20 rounded-xl p-4 backdrop-blur-sm">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>AI Maritime News Curation Demo</span>
+                      <span>2:15</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                // Video playing state - fullscreen video
+                    <div className="relative w-full h-[360px] rounded-3xl overflow-hidden">
+            <video
+              ref={videoRef}
+              className="w-full h-full object-cover rounded-3xl"
+              onEnded={handleVideoEnd}
+              autoPlay
+            >
+              <source src="/images/newsfeeds.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+              )}
             </div>
 
             {/* Subscription Form */}
-            <div className="bg-white rounded-2xl p-6 shadow-xl ">
+            <div className="bg-white rounded-2xl p-6 shadow-xl">
               <h4 className="text-lg font-semibold text-gray-900 mb-4">Enter Email and Start Subscription</h4>
               <div className="flex flex-col gap-3">
                 <Input
@@ -166,7 +207,8 @@ export default function HeroSection() {
                 </Button>
               </div>
               <p className="text-sm text-gray-500 mt-3">
-                14-day free trial • No credit card required (You&#39;ll receive a magic link to sign in and choose your plan)
+                14-day free trial • No credit card required (You&#39;ll receive a magic link to sign in and choose your
+                plan)
               </p>
               {message && <p className="text-sm text-center mt-3">{message}</p>}
             </div>
