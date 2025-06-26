@@ -184,11 +184,6 @@ export default function ServicesSection() {
         </div>
       </div>
 
-      {/* Activate Windows watermark */}
-      <div className="absolute bottom-6 right-6 text-right">
-        <p className="text-gray-500 text-base font-medium">Activate Windows</p>
-        <p className="text-gray-600 text-sm">Go to Settings to activate Windows.</p>
-      </div>
     </section>
   );
 }

@@ -170,12 +170,6 @@ export default function HeroSection() {
               </p>
               {message && <p className="text-sm text-center mt-3">{message}</p>}
             </div>
-
-            {/* Bottom right corner text */}
-            <div className="absolute -bottom-4 -right-4 text-right">
-              <p className="text-gray-400 text-sm">Activate Windows</p>
-              <p className="text-gray-400 text-xs">Go to Settings to activate Windows</p>
-            </div>
           </div>
         </div>
       </div>
