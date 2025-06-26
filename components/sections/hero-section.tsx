@@ -175,7 +175,7 @@ const handleVideoPlay = () => {
                     <div className="relative w-full h-[360px] rounded-3xl overflow-hidden">
             <video
               ref={videoRef}
-              className="w-full h-full object-cover rounded-3xl"
+              className="w-full h-full object-contain rounded-3xl"
               onEnded={handleVideoEnd}
               autoPlay
             >
