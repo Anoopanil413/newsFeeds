@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input" // Import Input for email field
 import { Bot, MousePointer, Globe } from "lucide-react"
-import { httpsCallable } from 'firebase/functions';
+// import { httpsCallable } from 'firebase/functions';
 import { sendSignInLinkToEmail } from "firebase/auth" // For sending magic link if not logged in
 import { useAuth } from "../auth-provider"
-import { auth, functions } from "@/lib/firebase"
+import { auth } from "@/lib/firebase"
 
 export default function ServicesSection() {
   const { user, loading: authLoading } = useAuth(); // Get user and loading state from AuthProvider
@@ -44,55 +44,66 @@ export default function ServicesSection() {
     },
   ];
 
-  const handleSampleNewsletterRequest = async () => {
-    setRequestMessage(""); // Clear previous messages
-    setRequestLoading(true);
+const handleSampleNewsletterRequest = async () => {
+  setRequestMessage("");
+  setRequestLoading(true);
 
-    if (user) {
-      // User is authenticated, directly request newsletter
+  if (user) {
+    try {
+      const idToken = await user.getIdToken(); // Secure your endpoint if needed
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL}/daily-news`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}` // Optional: if endpoint is protected
+        },
+        body: JSON.stringify({ uid: user.uid, email: user.email }) // If needed in backend
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to request newsletter');
+      }
+
+      setRequestMessage(`Success: ${data.message || 'Newsletter is being generated!'}`);
+    } catch (error: unknown) {
+      console.error("Newsletter error:", error);
+      if (error instanceof Error) {
+        setRequestMessage(`Error: ${error.message || 'Something went wrong.'}`);
+      } else {
+        setRequestMessage('Error: Something went wrong.');
+      }
+    }
+  } else {
+    // Email link logic unchanged
+    if (emailInput) {
       try {
-        const requestNews = httpsCallable(functions, 'requestNewsletter');
-        const result = await requestNews();
-        const data = result.data as { message: string };
-        setRequestMessage(`Success: ${data.message}`);
-        console.log('Sample newsletter request result:', data);
+        const actionCodeSettings = {
+          url: `${window.location.origin}/`,
+          handleCodeInApp: true,
+        };
+        await sendSignInLinkToEmail(auth, emailInput, actionCodeSettings);
+        localStorage.setItem('emailForSignIn', emailInput);
+        setRequestMessage("A sign-in link has been sent to your email. Please click it to receive the sample newsletter.");
+        setShowEmailInput(false);
       } catch (error: unknown) {
-        console.error('Error requesting sample newsletter:', error);
         if (error instanceof Error) {
-          setRequestMessage(`Error: ${error.message}`);
+          setRequestMessage(`Error: ${error.message || 'Failed to send sign-in link.'}`);
         } else {
-          setRequestMessage('Error: Failed to send sample newsletter.');
+          setRequestMessage('Error: Failed to send sign-in link.');
         }
       }
     } else {
-      // User is not authenticated, check email input or show it
-      if (emailInput) {
-        // Send magic link for sign-in and then the newsletter
-        try {
-          const actionCodeSettings = {
-            url: `${window.location.origin}/`, // Redirect to homepage after sign-in
-            handleCodeInApp: true,
-          };
-          await sendSignInLinkToEmail(auth, emailInput, actionCodeSettings);
-          localStorage.setItem('emailForSignIn', emailInput);
-          setRequestMessage("A sign-in link has been sent to your email. Please click it to receive the sample newsletter.");
-          setShowEmailInput(false); // Hide input after sending link
-        } catch (error: unknown) {
-          console.error("Error sending sign-in link for sample:", error);
-          if (error instanceof Error) {
-            setRequestMessage(`Error: ${error.message}`);
-          } else {
-            setRequestMessage('Error: Failed to send sign-in link.');
-          }
-        }
-      } else {
-        // No email input, show the input field
-        setShowEmailInput(true);
-        setRequestMessage("Please enter your email to receive a sample newsletter.");
-      }
+      setShowEmailInput(true);
+      setRequestMessage("Please enter your email to receive a sample newsletter.");
     }
-    setRequestLoading(false);
-  };
+  }
+
+  setRequestLoading(false);
+};
+
 
   return (
     <section className="py-24 bg-slate-900 relative">
